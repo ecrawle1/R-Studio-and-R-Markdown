@@ -2,9 +2,7 @@
 title: "Assignment 1 - Setting Up R"
 author: "Elizabeth Crawley"
 date: "2025-05-31"
-output:
-  word_document: default
-  pdf_document: default
+output: word_document
 ---
 
 ## 1. Install the ISLR library using the install.packages() command.

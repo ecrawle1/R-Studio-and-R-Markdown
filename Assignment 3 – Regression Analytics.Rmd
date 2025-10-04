@@ -1,0 +1,249 @@
+---
+title: "Assignment 3 – Regression Analytics"
+author: "Elizabeth Crawley"
+date: "2025-06-30"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+##1. Run the following code in R-studio to create two variables X and Y.
+```{r}
+set.seed(2017)
+X=runif(100)*10
+Y=X*4+3.45
+Y=rnorm(100)*0.29*Y+Y
+```
+##a) Plot Y against X. Include a screenshot of the plot in your submission. Using the File menu you can save the graph as a picture on your computer. Based on the plot do you think we can fit a linear model to explain Y based on X? (8% of total points)
+
+```{r}
+# This will make the random numbers reproducible
+set.seed(2017)
+
+# This will create 100 random values between 0 and 10
+X <- runif(100) * 10
+head(X)  # added this to see the first few values of X
+
+# Calculate Y as a linear function of X: Y = 4*X + 3.45
+Y_linear <- 4 * X + 3.45
+head(Y_linear)  # see the first few lines of Y_linear
+
+# Add noise to Y:
+# rnorm(100) gives 100 values from N(0, 1)
+# These are scaled by 0.29 * Y_linear to make noise proportional to Y
+noise <- rnorm(100) * 0.29 * Y_linear
+head(noise)  # first few noise values
+
+# Final Y is the linear Y plus the noise Y+Y
+Y <- Y_linear + noise
+head(Y)  # Show final Y values
+
+# Plot (scatterplot) Y against X to visualize the relationship
+plot(X, Y, main = "Scatterplot of Y vs X",
+     xlab = "X", ylab = "Y",
+     pch = 19, col = "blue") # add a pch value of 19 to create a large, solid circle in blue for appearance.
+
+# Fit a linear model and add the regression line to the plot
+model <- lm(Y ~ X)
+abline(model, col = "red", lwd = 2) # add a lwd value of 2 to make it a medium line again for looks.
+
+# Optional: Summary of the linear model
+summary(model)
+```
+```{r}
+# Based on the plot:Yes, a linear model can be used to explain Y based on X. The blue circles, or points on the scatterplot form an obvious line. There are some points spread out which I think is because of the added noise. However, the trend is clearly upward and consistent so using a linear model fits. The red regression line fits the data.
+```
+
+##b) Construct a simple linear model of Y based on X. Write the equation that explains Y based on X. What is the accuracy of this model? (8% of total points)
+```{r}
+##The equation from the output of the simulated data:
+##𝑌^ = 4.4565 + 3.6108 ⋅ 𝑋Y^
+## = 4.465 5 + 3.6108 ⋅ X
+##What it means:
+##The intercept is approximately 4.656  (This is the predicted value of Y when X = 0)
+##The slope is approximately 3.611 (This means that for each 1-unit increase in X, the predicted value of Y increases by approximately 3.61 units)
+##r-squared = 0.6517 (meaning around 65.17% of the variation in Y is explained by X - it's not 100% but it's still a good indicator especially with the added noise)
+## residual standard error = 7.756 (this is the typical size of the prediction errors)
+## p-value for X < 2.2e-16 (meaning the relationship between X and Y is statistically significant [2.2e-16 is scientific notation — it means: 2.2 × 10 (power of) −16 = 0.00000000000000022 ])
+```
+```{r}
+model <- lm(Y ~ X)
+
+summary(model)
+
+## create a visual to make checking my results easier.
+plot(model$fitted.values, model$residuals,
+     main = "Residuals vs Fitted Values",
+     xlab = "Fitted Values",
+     ylab = "Residuals",
+     pch = 19, col = "darkgreen")
+abline(h = 0, col = "red", lwd = 2)
+```
+##c) How the Coefficient of Determination, R2, of the model above is related to the correlation coefficient of X and Y? (8% of total points)
+```{r}
+## R2 or the Coefficient of Determination is found in the model here: ##r-squared = 0.6517 and the correlation coefficient (Pearson correlation coefficient) of X and Y is the square of r  0.6517 = 0.8073
+## around 0.81 is a strong linear correlation for X and Y
+## The regression model shows that X predicts around 65.17% of the variance for Y 
+
+## R2 is the coefficient of determination and it tells us how much of the variation of Y is explained by X
+##r is the Pearson correlation coefficient between X and Y and it shows us the direction and strenght of the linear relationship 
+## We can square r to find R2 or we can take the square root of R2 to get r.
+```
+```{r}
+set.seed(2017)
+X <- runif(100) * 10
+Y <- X * 4 + 3.45
+Y <- rnorm(100) * 0.29 * Y + Y
+
+model <- lm(Y ~ X)
+
+## Find R2 (R squared) from the model
+model_summary <- summary(model)
+r_squared_from_model <- model_summary$r.squared
+cat("R-squared from model:", r_squared_from_model, "\n")
+
+## Find the Pearson correlation coefficient between X and Y
+r_correlation <- cor(X, Y)
+cat("Pearson correlation (r):", r_correlation, "\n")
+
+## Square the Pearson correlation to get R2 or r squared
+r_squared_from_correlation <- r_correlation^2
+cat("R-squared from r^2:", r_squared_from_correlation, "\n")
+
+## Check to see if R2 from the model matches r squared from the Pearson correlation
+identical(round(r_squared_from_model, 6), round(r_squared_from_correlation, 6))
+```
+##2. We will use the ‘mtcars’ dataset for this question. The dataset is already included in your R distribution. The dataset shows some of the characteristics of different cars.
+```{r}
+cars_dataset <- read.csv("C:\\Users\\ecrawle1\\OneDrive - Kent State University\\Desktop\\MS Business Analytics\\Business Analytics M25\\Assignment 3\\mtcars.csv", stringsAsFactors = FALSE)
+
+
+str(cars_dataset)
+```
+##a) James wants to buy a car. He and his friend, Chris, have different opinions about the Horse Power (hp) of cars. James think the weight of a car (wt) can be used to estimate the Horse Power of the car while Chris thinks the fuel consumption expressed in Mile Per Gallon (mpg), is a better estimator of the (hp). Who do you think is right? Construct simple linear models using mtcars data to answer the question. (17% of total points)
+```{r}
+cars_dataset <- read.csv("C:\\Users\\ecrawle1\\OneDrive - Kent State University\\Desktop\\MS Business Analytics\\Business Analytics M25\\Assignment 3\\mtcars.csv", stringsAsFactors = FALSE)
+
+str(cars_dataset)
+
+# James's model: Predict hp using weight (wt)
+model_james <- lm(hp ~ wt, data = cars_dataset)
+summary(model_james)
+
+# Chris's model: Predict hp using mpg
+model_chris <- lm(hp ~ mpg, data = cars_dataset)
+summary(model_chris)
+
+# Compare R-squared values
+r2_james <- summary(model_james)$r.squared
+r2_chris <- summary(model_chris)$r.squared
+
+cat("James's R-squared (hp ~ wt):", r2_james, "\n")
+cat("Chris's R-squared (hp ~ mpg):", r2_chris, "\n")
+```
+```{r}
+## After constructing two simple linear regression models using the mtcars dataset, we found that: 
+
+## James's model predicting horsepower (hp) from weight (wt) had an R-squared of 0.4339.
+
+## Chris's model predicting horsepower from miles per gallon (mpg) had a higher R-squared of 0.6024.
+
+## This means that miles per gallon explains more of the variation in horsepower than the weight does. Therefore, Chris is correct — the miles per gallon of a car is a better predictor of horsepower than its weight.
+```
+
+##b) Build a model that uses the number of cylinders (cyl) and the mile per gallon (mpg) values of a car to predict the car Horse Power (hp). Using this model, what is the estimated Horse Power of a car with 4 cylinder and mpg of 22? (17% of total points)
+```{r}
+model_multi <- lm(hp ~ cyl + mpg, data = cars_dataset)
+
+summary(model_multi)
+
+new_car <- data.frame(cyl = 4, mpg = 22)
+
+predicted_hp <- predict(model_multi, newdata = new_car)
+cat("Estimated Horsepower:", predicted_hp, "\n")
+```
+```{r}
+## From this model, the estimated Horse Power of a car with 4 cylinder and mpg of 22 is 88.94
+## The R2 value is around 0.71 so it explains about 71.09% of the variance in horsepower (Y). But this is multiple regression (Y ~ X1 + X2), so R2 is not equal to the square of any one correlation, instead it reflects how all the predictors (cyl X1 and mpg X2) together explain hp Y
+```
+
+##3. For this question, we are going to use BostonHousing dataset. The dataset is in ‘mlbench’ package, so we first need to instal the package, call the library and the load the dataset using the following commands.
+##The dataset contains information about houses in different parts of Boston.
+```{r}
+install.packages("mlbench", repos = "https://cloud.r-project.org")
+library(mlbench)
+data(BostonHousing)
+str(BostonHousing)
+```
+##a) Build a model to estimate the median value of owner-occupied homes (medv)based on the following variables: crime crate (crim), proportion of residential land zoned for lots over 25,000 sq.ft (zn), the local pupil-teacher ratio (ptratio) and whether the tract bounds Chas River(chas). Is this an accurate model? (Hint check R2 ) (8% of total points)
+```{r}
+model_boston <- lm(medv ~ crim + zn + ptratio + chas, data = BostonHousing)
+
+summary(model_boston)
+```
+```{r}
+## Multiple R2 = 0.3599 The model shows the value of around 0.36 for multiple r squared which explains about 36% of the variance in home values
+
+## Adjusted R-squared = 0.3547 this value is Slightly lower than the mulitple R2, accounting for the number of predictors
+
+## All predictors are statistically significant (p-values < 0.001) which means they all contribute to the prediction of medv
+
+## This is considered a "moderately accurate" model because all the predictors are statistically significant, but maybe other variables would improve the predictive performance.
+```
+
+##b) Use the estimated coefficient to answer these questions?
+
+##I. Imagine two houses that are identical in all aspects but one bounds the Chas River and the other does not. Which one is more expensive and by how much? (8% of total points)
+```{r}
+##The house that bounds the Charles River is estimated to be worth $4,584 more (rounded to the nearest dollar) than an identical house that does not, all else being equal.
+##From the Coefficients, the estimated standard deviation for a house bound by the Charles River is estimated to be worth more :chas1        4.58393
+```
+```{r}
+# Coefficient for chas1
+chas_coef <- coef(model_boston)["chas1"]
+chas_coef
+```
+
+##II. Imagine two houses that are identical in all aspects but in the neighborhood of one of them the pupil-teacher ratio is 15 and in the other one is 18. Which one is more expensive and by how much? (Golden Question: 4% extra)
+```{r}
+##The house in the neighborhood with a pupil-teacher ratio of 15 is estimated to be worth $4,481 more than the one in the neighborhood with a ratio of 18, all else being equal.
+
+## The coefficient for ptratio is -1.49367 
+## A higher ptratio means lower quality schools (larger class sizes), which reduces home value
+## Calculation: medv = -1.49367 X (18-15)= -4.48101
+```
+```{r}
+ptratio_coef <- coef(model_boston)["ptratio"]
+
+ptratio_diff <- ptratio_coef * (18 - 15)
+ptratio_diff
+```
+##c) Which of the variables are statistically important (i.e. related to the house price)? Hint: use the p-values of the coefficients to answer. (8% of total points)
+```{r}
+model_boston <- lm(medv ~ crim + zn + ptratio + chas, data = BostonHousing)
+
+summary(model_boston)
+
+```
+```{r}
+##If p-value < 0.05 → the variable is statistically significant (strong evidence it's related to house price)
+## All values : Crime rate (crim) 2.20e-10 ***, Zoning proportion (zn) 6.14e-06 ***, Pupil-teacher ratio (ptratio) < 2e-16, and Charles River proximity (chas) 0.000514 have a p-value less than 0.05 which means they all have statistically significant relationships with median home value in the BostonHousing dataset.
+
+## The most statistically significant variable is Pupil-teacher ratio ptratio, with a p-value of < 2e-16, which is the smallest p-value among all predictors.
+```
+##d) Use the anova analysis and determine the order of importance of these four variables. (18% of total points)
+```{r}
+model_boston <- lm(medv ~ crim + zn + ptratio + chas, data = BostonHousing)
+
+anova(model_boston)
+```
+```{r}
+## To determine the order of importance among all variables using the ANOVA analysis, look at the sum of squares and the F values. Larger values have greater importance. 
+
+## From the ANOVA analysis of this model, the variables are in order from most important predictor of medv to least: Crime rate (crim) SS: 6440.8 FV: 118.007, Pupil-teacher ratio (ptratio) SS:4709.5 FV:86.287, Proportion of zoned land (zn) SS:3554.3 FV: 65.122, Charles River dummy (chas) SS:667.2 FV:12.224
+
+##This ranking is based on the Sum of Squares and F-values, which reflect how much unique variance each variable explains in the model. 
+##This also demonstrates that using the P value as a measure of statistical significance, like question 3C, Sum of Squares and F-values give a stronger indication of each variable’s relative importance in the model.
+```
+

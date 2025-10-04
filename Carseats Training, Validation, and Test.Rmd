@@ -1,0 +1,36 @@
+---
+output:
+  pdf_document: default
+  html_document: default
+---
+metadata title = "Carseats-Training_Validation_Test"
+
+```{r}
+
+library(ISLR)
+library(caret)
+data("Carseats")
+set.seed(123)
+
+## Partition Carseats into Temp and Test, 0.75 found a closer number of rows than did 0.80
+train_Index <- createDataPartition(Carseats$Sales, p = 0.75, list = FALSE)
+
+Temp <- Carseats[train_Index,]
+test <- Carseats[-train_Index,]
+nrow(Temp)
+nrow(test)
+```
+```{r}
+## To avoid duplicate records, partition Temp into Training and Validation. 2/3 for Training
+train_Index_Temp <- createDataPartition(Temp$Sales, p = 2/3, list = FALSE)
+
+Training <- Temp[train_Index_Temp, ]
+Validation <- Temp[-train_Index_Temp, ]
+
+## To verify the sizes of the dataset
+
+nrow(Training)
+nrow(Validation)
+nrow(test)
+```
+

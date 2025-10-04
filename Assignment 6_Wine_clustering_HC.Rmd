@@ -1,0 +1,295 @@
+---
+title: "Assignment 6"
+author: "Elizabeth Crawley"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r}
+## Wine Chemical Analysis Using Hierarchical Clustering
+## This dataset is adapted from the Wine Data Set originally available on the UCI Machine Learning Repository. It has been modified for unsupervised learning. The dataset contains results from a chemical analysis of wines produced in a specific region of Italy, derived from three different cultivars. Each record represents a unique wine sample, analyzed for 13 distinct chemical constituents that contribute to the wine's characteristics and quality
+
+##Q1-A)  [30 Points] Use the wine dataset to perform hierarchical clustering using both AGNES and DIANA.Plot dendrograms for both AGNES and DIANA methods.
+##Hint:
+#First exclude categorical variables and use scale() to normalized your data.
+##Exclude the categorical variables (Alcohol_Level, Ash_Content, Color_Intensity_Group) and normalize the remaining numeric variables using scale().
+```
+
+
+```{r}
+# Load necessary libraries
+library(dplyr)
+library(cluster)
+library(ggplot2)
+library(e1071)
+library(tinytex)
+library(dbscan)
+library(fpc)
+
+wine_clustering_hc <- read.csv("C:/Users/ecrawle1/OneDrive - Kent State University/Desktop/Machine Learning/Wine-clustering-HC.csv")
+
+str(wine_clustering_hc)
+
+wine_numeric <- wine_clustering_hc %>%
+  select(-Alcohol_Level, -Ash_Content, -Color_Intensity_Group)
+
+str(wine_numeric)
+
+wine_scaled <- scale(wine_numeric)
+
+head(wine_scaled)
+
+# Agglomerative clustering using AGNES
+agnes_single <- agnes(wine_numeric, method = "single")
+agnes_complete <- agnes(wine_numeric, method = "complete")
+agnes_ward <- agnes(wine_numeric, method = "ward")
+agnes_average <- agnes(wine_numeric, method = "average")
+
+# Plot dendrograms for each linkage method
+par(mfrow = c(2, 2))
+pltree(agnes_single, main = "Single Linkage")
+pltree(agnes_complete, main = "Complete Linkage")
+pltree(agnes_ward, main = "Ward's Method")
+pltree(agnes_average, main = "Average Linkage")
+
+# Divisive clustering using DIANA
+diana_result <- diana(wine_numeric)
+
+# Plot the dendrogram for DIANA
+pltree(diana_result, main = "DIANA Clustering")
+
+if (!require("factoextra")) install.packages("factoextra", dependencies = TRUE)
+library(factoextra)
+
+fviz_nbclust(wine_scaled, kmeans, method = "wss") + 
+  labs(subtitle = "Elbow Method to Determine Optimal k")
+```
+```{r}
+##Q1-B) Compare Agglomerative Coefficient (AC) and Divisive Coefficient (DC) Agglomerative Coefficient (AC) for AGNES:
+
+## The agglomerative coefficient measures the strength of the clustering structure. A higher value indicates more cohesive clusters.
+```
+
+```{r}
+agnes_ac <- agnes_single$ac  # Agglomerative Coefficient for AGNES (single linkage)
+print(agnes_ac)
+
+## Divisive Coefficient (DC) for DIANA: The divisive coefficient measures how well the data can be divided into distinct clusters. A higher value indicates better separation.
+
+diana_dc <- diana_result$dc  # Divisive Coefficient for DIANA
+print(diana_dc)
+
+## Comparison: Compare the values of the agglomerative coefficient (AC) from AGNES and divisive coefficient (DC) from DIANA. The method with the higher value indicates the more cohesive clustering structure.
+
+if (agnes_ac > diana_dc) {
+  print("AGNES provides a more cohesive clustering structure.")
+} else {
+  print("DIANA provides a more cohesive clustering structure.")
+}
+```
+```{r}
+##Question 2: Visualize Categorical Variables
+## Q2-A) [30 Points] For each of the categorical variables, namely, Alcohol_Level, Ash_Content, Color_Intensity_Group, calculate the median of the corresponding numeric variable (Alcohol, Ash, Color_Intensity).
+## Hint: Median.Recommendation <- wines %>% group_by(Alcohol_Level) %>% summarise(Median_Alcohol = median(Alcohol, na.rm = TRUE))
+```
+```{r}
+Median_Alcohol <- wine_clustering_hc %>% 
+  group_by(Alcohol_Level) %>%
+  summarise(Median_Alcohol = median(Alcohol, na.rm = TRUE))
+
+Median_Ash <- wine_clustering_hc %>% 
+  group_by(Ash_Content) %>%
+  summarise(Median_Ash = median(Ash, na.rm = TRUE))
+
+Median_Color_Intensity <- wine_clustering_hc %>% 
+  group_by(Color_Intensity_Group) %>%
+  summarise(Median_Color_Intensity = median(Color_Intensity, na.rm = TRUE))
+
+print(Median_Alcohol)
+print(Median_Ash)
+print(Median_Color_Intensity)
+```
+```{r}
+## Q2-B) [30 Points] Create bar plots to visualize these median values across different levels of the categorical variables. Use ggplot2 to plot these visualizations with appropriate labels and titles. 
+##Hint: ggplot(Median.Recommendation, aes(x = Median_Color_Intensity, y = factor(Color_Intensity_Group) , fill = factor(Ash_Content), ...)
+```
+```{r}
+# Bar plot for Median Alcohol by Alcohol_Level
+ggplot(Median_Alcohol, aes(x = Alcohol_Level, y = Median_Alcohol, fill = Alcohol_Level)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Median Alcohol by Alcohol Level", x = "Alcohol Level", y = "Median Alcohol (%)") +
+  theme_minimal()
+
+# Bar plot for Median Ash by Ash_Content
+ggplot(Median_Ash, aes(x = Ash_Content, y = Median_Ash, fill = Ash_Content)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Median Ash by Ash Content", x = "Ash Content", y = "Median Ash") +
+  theme_minimal()
+
+# Bar plot for Median Color Intensity by Color_Intensity_Group
+ggplot(Median_Color_Intensity, aes(x = Color_Intensity_Group, y = Median_Color_Intensity, fill = Color_Intensity_Group)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Median Color Intensity by Color Intensity Group", x = "Color Intensity Group", y = "Median Color Intensity") +
+  theme_minimal()
+```
+```{r}
+##Q2-C) [20 Points] Interpret the bar plots: What do the median values suggest about the distribution of the numeric variables across the different categories? What insights can you derive regarding the characteristics of the wines?
+
+## Median Alcohol by Alcohol Level: If wines with higher alcohol levels have higher median alcohol percentages, it indicates that the classification captures the strength of the wine. The trend should show an increase in alcohol content as you move from low to high alcohol levels.
+
+## Median Ash by Ash Content: The plot should reflect that higher ash content corresponds to higher median ash levels. This could suggest a richer mineral composition in wines with higher ash content.
+
+## Median Color Intensity by Color Intensity Group: The plot for color intensity should show an increase in the median color intensity as the color intensity group changes from "Light" to "Dark," indicating that darker wines tend to have higher color intensity.
+
+## Question 3: Determine Appropriate Clustering Technique
+## Q3-A) [20 Points] Considering the results from AGNES and DIANA, which hierarchical clustering technique is more appropriate for analyzing the wine dataset? 
+
+## [1] 0.9156393
+## [1] 0.9898472
+## [1] "DIANA provides a more cohesive clustering structure."
+
+## Compare the results obtained from AGNES and DIANA, focusing on the number of clusters formed and the quality of separation.
+```
+```{r}
+# Load necessary libraries
+library(cluster)
+library(factoextra)
+
+# Perform AGNES clustering
+agnes_result <- agnes(wine_scaled, method = "ward")  # Using Ward's method for minimal variance
+
+# Plot the dendrogram for AGNES
+par(mfrow = c(1, 1))  # Ensure only one plot is shown
+pltree(agnes_result, main = "AGNES Clustering (Ward's Method)")
+
+# Perform DIANA clustering
+diana_result <- diana(wine_scaled)
+
+# Plot the dendrogram for DIANA
+pltree(diana_result, main = "DIANA Clustering")
+
+# Cut the AGNES dendrogram to form 3 clusters
+agnes_clusters <- cutree(agnes_result, k = 3)
+
+# Cut the DIANA dendrogram to form 3 clusters
+diana_clusters <- cutree(diana_result, k = 3)
+
+# Add cluster assignments to the original data for visualization
+wine_clustering_hc$agnes_cluster <- as.factor(agnes_clusters)
+wine_clustering_hc$diana_cluster <- as.factor(diana_clusters)
+
+# Visualize AGNES clustering using fviz_cluster
+fviz_cluster(list(data = wine_scaled, cluster = agnes_clusters), 
+             main = "AGNES Clustering", geom = "point")
+
+# Visualize DIANA clustering using fviz_cluster
+fviz_cluster(list(data = wine_scaled, cluster = diana_clusters), 
+             main = "DIANA Clustering", geom = "point")
+```
+```{r}
+## Number of Clusters Formed:
+
+## Both AGNES and DIANA allow you to select the number of clusters (in this case, 3). AGNES produced clusters that overlap while DIANA produced clusters that are clearly defined providing better quality of separation. 
+
+## Discuss any meaningful patterns or insights observed in the clusters
+
+##AGNES Clustering:
+## Cluster Compactness: The clusters from AGNES were not well-separated. This suggests that the data points within each cluster are very different from eachother in terms of scaled chemical composition such as alcohol content. 
+## DIANA Clustering:
+## Cluster Dispersion: DIANA resulted in clusters that were clearly separated and were less spread out. This could indicate that the dataset isn't overly complicated and doesn't have too many noise points.
+
+## Possible Patterns in the Clusters:
+## Cluster Characteristics: Each cluster might represent wines with similar chemical characteristics. For example:
+##Cluster 1: Wines with high alcohol content, higher color intensity, and high phenols (perhaps indicating full-bodied red wines).
+##Cluster 2: Wines with moderate alcohol content and moderate acidity (indicating balanced wines).
+##Cluster 3: Wines with lower alcohol content and higher malic acid (possibly indicating lighter or more acidic wines).
+```
+
+```{r}
+# Cross-tabulation of clusters with Alcohol_Level
+table(wine_clustering_hc$agnes_cluster, wine_clustering_hc$Alcohol_Level)
+
+# Cross-tabulation of clusters with Ash_Content
+table(wine_clustering_hc$agnes_cluster, wine_clustering_hc$Ash_Content)
+
+# Cross-tabulation of clusters with Color_Intensity_Group
+table(wine_clustering_hc$agnes_cluster, wine_clustering_hc$Color_Intensity_Group)
+
+```
+```{r}
+## Wines with High Alcohol Content: If wines with a high alcohol content (e.g., Alcohol_Level = High) are grouped into one cluster, this suggests that alcohol content might be a key differentiating factor for that cluster.
+##Ash Content's Influence: If the clusters are also influenced by ash content (e.g., wines with low ash content in one cluster, high ash content in another), it might suggest that mineral composition plays a role in clustering.
+##Color Intensity: The clusters might show a relationship between color intensity and wine type (e.g., darker wines might group together, showing a trend of richer or more robust wines).
+
+
+## Q3-B) [20 Points] Would another clustering approach, such as K-Means or DBSCAN, be more suitable for this dataset? Explain your reasoning based on the dataset properties and clustering results.
+
+##Comparison with Other Methods:
+
+## K-Means: This method is better suited for data that forms spherical clusters, and its efficiency may be higher for large datasets.(GOOD FOR THIS DATASET)
+
+## DBSCAN: This density-based method is more suitable for datasets with noise or clusters of varying shapes. If there are non-spherical clusters or noise in the data, DBSCAN might be more appropriate.(NOT SO GOOD FOR THIS DATASET)
+```
+
+```{r}
+# Additional Package Check (if not installed)
+if (!require("factoextra")) install.packages("factoextra", dependencies = TRUE)
+library(factoextra)
+
+fviz_nbclust(wine_scaled, kmeans, method = "wss") + labs(subtitle = "Elbow Method to Determine Optimal k")
+
+fviz_nbclust(wine_scaled, kmeans, method = "silhouette") + labs(subtitle = "Silhouette Analysis for Optimal K")
+
+set.seed(42)
+kmeans_result <- kmeans(wine_scaled, centers = 3, nstart = 25)
+
+print(kmeans_result$cluster)
+
+fviz_cluster(kmeans_result, data = wine_scaled, ellipse.type = "convex", geom = "point", show.clust.cent = TRUE) + labs(title = "K-Means Clustering of Wine Chemical Analysis", subtitle = "PCA Plot")
+
+print(kmeans_result$centers)
+
+library(cluster)
+sil <- silhouette(kmeans_result$cluster, dist(wine_scaled))
+fviz_silhouette(sil)
+
+library(dbscan)
+library(factoextra)
+
+wine_clustering_hc <- read.csv("C:/Users/ecrawle1/OneDrive - Kent State University/Desktop/Machine Learning/Wine-clustering-HC.csv")
+
+str(wine_clustering_hc)
+
+wine_numeric <- wine_clustering_hc %>%
+  select(-Alcohol_Level, -Ash_Content, -Color_Intensity_Group)
+
+str(wine_numeric)
+
+wine_scaled <- scale(wine_numeric)
+
+head(wine_scaled)
+
+if (!require("factoextra")) install.packages("factoextra", dependencies = TRUE)
+library(factoextra)
+
+fviz_nbclust(wine_scaled, kmeans, method = "wss") + 
+  labs(subtitle = "Elbow Method to Determine Optimal k")
+
+wine_numeric <- wine_clustering_hc %>%
+  select(-Alcohol_Level, -Ash_Content, -Color_Intensity_Group)
+
+str(wine_numeric)
+
+wine_scaled <- scale(wine_numeric)
+
+head(wine_scaled)
+
+dbscan_result <- dbscan(wine_scaled, eps = 1, MinPts = 5)
+
+fviz_cluster(dbscan_result, data = wine_scaled, geom = "point") + labs(title = "DBSCAN Wine Chemical Analysis")
+```
+
+

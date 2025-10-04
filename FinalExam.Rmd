@@ -1,0 +1,234 @@
+---
+title: "Final Exam"
+author: "Elizabeth Crawley"
+date: "`r Sys.Date()`"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+#A) Clustering
+#Use K-Means, DBSCAN and Hierarchical Clustering (HC) as a primary means of understanding and analyzing the data. 
+#What information is revealed by clustering? Use any set of desired features (at least four among columns C to H) to describe and identify the clusters (you decide how many features should be included; just make sure column C is among them). 
+#How should the value for the number of clusters be chosen?
+#Interpret the clusters
+
+#My analysis of the data will examine:
+#What does the sulfur and ash content suggest about the fuel type and what does the sulfur and ash content suggest about the fuel cost per MMBtu?
+```{r}
+# Load libraries
+library(dplyr)
+library(lubridate)  # For handling dates
+library(caret)      # For preprocessing (dummy encoding)
+library(cluster)
+library(factoextra)
+library(dbscan)
+
+# Read and select relevant columns
+energy_dataset <- read.csv("C:/Users/ecrawle1/OneDrive - Kent State University/Desktop/Machine Learning/EIA923.csv")
+
+```
+#I had to convert fuel_type_code_pudl to a factor. However, since fuel_type_code_pudl is a categorical variable, it is not included in clustering directly, as clustering methods (like K-means and DBSCAN) generally require numeric data. From my code, I excluded this variable when scaling the numeric columns.
+
+#I created a new dataframe (selected_columns_no_fuel) that excludes the fuel_type_code_pudl column. This leaves only the numeric columns (sulfur_content_pct, ash_content_pct, and fuel_cost_per_mmbtu) for clustering.
+```{r}
+# Selecting relevant columns
+selected_columns <- energy_dataset[, c("fuel_type_code_pudl","sulfur_content_pct","ash_content_pct", "fuel_cost_per_mmbtu")]
+
+# Convert categorical columns to factors and handle missing values
+selected_columns$fuel_type_code_pudl <- as.factor(selected_columns$fuel_type_code_pudl)
+selected_columns <- na.omit(selected_columns)
+
+# Scale the numeric columns (excluding categorical)
+selected_columns_no_fuel <- selected_columns %>%
+  select(-fuel_type_code_pudl)
+
+# Scale the remaining numeric columns
+selected_columns_scaled_df <- as.data.frame(scale(selected_columns_no_fuel))
+
+# Check structure of scaled data
+str(selected_columns_scaled_df)
+```
+#The clusters will show which fuels group together based on sulfur and ash content. Each cluster will represent a set of fuels that share similar properties. You can examine the centroids of the clusters to understand the average sulfur and ash content for each group.
+
+#Cluster Centroids: In K-means clustering, each cluster has a centroid that represents the average sulfur content, ash content, and fuel cost per MMBtu of the points in that cluster. These centroids can give you a sense of the "average" fuel in each cluster.
+
+#Outliers: In DBSCAN, clusters will highlight the main patterns in your data, but it also identifies outliers (data points that don’t fit well into any cluster). For example, a fuel with an unusually high sulfur content might be an outlier, indicating it might need special handling or might be priced differently.
+
+#Segmentation of Fuels: You might find that fuels with higher sulfur and ash content tend to fall into higher-cost clusters, or that fuels with low sulfur and ash content are more cost-effective. This can be used to optimize fuel sourcing, as well as understand the cost-benefit tradeoffs for using certain fuels.
+
+#The clustering results should suggest a correlation. For example, you might find that fuels with high sulfur content and high ash content tend to have higher fuel costs due to increased environmental or operational costs.
+#Alternatively, if fuels with low sulfur and ash content cluster together and have lower costs, it may suggest that cleaner or more efficient fuels are cheaper.
+```{r}
+# K-Means Clustering
+# Determine the optimal number of clusters using the Elbow method
+fviz_nbclust(selected_columns_scaled_df, kmeans, method = "wss")
+
+# Apply K-means with chosen number of clusters (e.g., k = 3)
+set.seed(123)  # Ensure reproducibility
+kmeans_result <- kmeans(selected_columns_scaled_df, centers = 3, nstart = 25)
+
+# Visualize K-Means clusters
+fviz_cluster(kmeans_result, data = selected_columns_scaled_df)
+
+kmeans_result$centers
+
+# Add cluster assignments to the dataset
+selected_columns$Cluster <- as.factor(kmeans_result$cluster)
+
+# View the dataset with cluster assignments
+head(selected_columns)
+
+library(dplyr)
+cluster_summary <- selected_columns %>%
+  group_by(Cluster) %>%
+  summarise(
+    avg_sulfur = mean(sulfur_content_pct),
+    avg_ash = mean(ash_content_pct),
+    avg_fuel_cost = mean(fuel_cost_per_mmbtu)
+  )
+
+# View the summary
+print(cluster_summary)
+
+```
+
+```{r}
+# DBSCAN Clustering
+# Plot kNN distances to estimate epsilon
+kNNdistplot(selected_columns_scaled_df, k = 3)
+abline(h = 1, col = "red", lty = 2)  # Visualize the threshold `h` after inspection
+
+# Apply DBSCAN
+dbscan_result <- dbscan(selected_columns_scaled_df, eps = 1, minPts = 5)
+
+# Visualize DBSCAN clusters
+fviz_cluster(dbscan_result, data = selected_columns_scaled_df, geom = "point")
+
+# Print DBSCAN cluster assignment
+print(dbscan_result$cluster)
+```
+
+```{r}
+# Hierarchical Clustering
+dist_matrix <- dist(selected_columns_scaled_df)  # Compute distance matrix
+hierarchical_model <- hclust(dist_matrix, method = "ward.D2")
+
+# Plotting the dendrogram
+plot(hierarchical_model)
+
+# Cut the dendrogram to form 3 clusters
+cutree_model <- cutree(hierarchical_model, k = 3)
+
+# Adding cluster labels to the dataset
+selected_columns$Hierarchical_Cluster <- as.factor(cutree_model)
+
+# Visualizing the hierarchical clusters
+fviz_cluster(list(data = selected_columns_scaled_df, cluster = cutree_model))
+```
+
+#The clusters definitely show which fuels group together based on sulfur and ash content. 3 clusters were used to demonstrate that gas (cluster 3) contains the least amount of sulfur and ash content, oil (cluster 1) has more than gas, but by far, coal (cluster 2) contains the most amount of sulfur and ash content. This assessment is mainly found in the k-means clustering centeroids, but is also shown in heirarchial clustering. 
+#From the outliers in DBSCAN, clusters highlight the main patterns and identify data points that don’t fit well into any cluster.
+#The clustering also demonstrated that fuels with low sulfur and ash content cluster together and have higher costs, which may be an indication that cleaner fuel is more desired and therefore more expensive. The amount of sulfer on average was less for oil than for coal and this also impacted the average cost, making oil a slightly more expensive energy choice than coal.
+#The value used for these clusters was used with the Elbow method of obtaining the optimal number of clusters for the dataset.
+
+#B) Classification
+#Now, assume ‘fuel_type_code_pudl’ is your response, use both K-NN and Naïve Bayes methods for prediction. The features are "sulfur_content_pct","ash_content_pct", "fuel_cost_per_mmbtu". Compare these two methods based on confusion matrix (in test data not training). Note that since your response has three levels, your confusion matrix is 3*3.
+#Considerations
+#The data is almost clean (not missing values). You might only want to pay attention to outliers for more reliable results.
+#Ensure that the variables have the right attributes. For example, numerical or categorical, e.g., fuel_type_code_pudl is categorical.
+#Since the dataset is small, ensure at least 70% of data for training.
+#Use the last 4-digit of your student ID for randomization purposes (6863)
+
+```{r}
+# Libraries
+library(caret)    # For K-NN, Naïve Bayes, and confusion matrix
+library(class)     # For K-NN
+library(e1071)     # For Naïve Bayes
+library(dplyr)     # For data manipulation
+
+# Read and select relevant columns
+energy_dataset <- read.csv("C:/Users/ecrawle1/OneDrive - Kent State University/Desktop/Machine Learning/EIA923.csv")
+
+# Selecting relevant columns
+selected_columns <- energy_dataset[, c("fuel_type_code_pudl","sulfur_content_pct","ash_content_pct", "fuel_cost_per_mmbtu")]
+
+# Convert categorical columns to factors
+selected_columns$fuel_type_code_pudl <- as.factor(selected_columns$fuel_type_code_pudl)
+
+# Handle outliers if needed (optional, based on domain knowledge)
+# selected_columns <- selected_columns %>% filter(sulfur_content_pct < 10, ash_content_pct < 50)
+
+# Split the data into training and testing sets (70% train, 30% test)
+set.seed(6863)  # Set seed for reproducibility (use last 4 digits of student ID)
+train_index <- createDataPartition(selected_columns$fuel_type_code_pudl, p = 0.7, list = FALSE)
+train_data <- selected_columns[train_index, ]
+test_data <- selected_columns[-train_index, ]
+
+# Scale numeric columns in training and testing sets
+train_data_scaled <- train_data %>%
+  select(-fuel_type_code_pudl) %>%
+  scale()
+
+test_data_scaled <- test_data %>%
+  select(-fuel_type_code_pudl) %>%
+  scale()
+
+# 1. K-NN Classification
+k_value <- 5  # Set the number of neighbors for K-NN
+knn_model <- knn(train_data_scaled, test_data_scaled, cl = train_data$fuel_type_code_pudl, k = k_value)
+
+# 2. Naïve Bayes Classification
+naive_bayes_model <- naiveBayes(fuel_type_code_pudl ~ sulfur_content_pct + ash_content_pct + fuel_cost_per_mmbtu, data = train_data)
+
+# Predict using Naïve Bayes
+naive_bayes_pred <- predict(naive_bayes_model, newdata = test_data)
+
+# Confusion Matrix for K-NN
+knn_confusion <- confusionMatrix(knn_model, test_data$fuel_type_code_pudl)
+
+# Confusion Matrix for Naïve Bayes
+naive_bayes_confusion <- confusionMatrix(naive_bayes_pred, test_data$fuel_type_code_pudl)
+
+# Print Confusion Matrices
+print("K-NN Confusion Matrix:")
+print(knn_confusion)
+
+print("Naïve Bayes Confusion Matrix:")
+print(naive_bayes_confusion)
+
+# Compare accuracy
+knn_accuracy <- knn_confusion$overall['Accuracy']
+naive_bayes_accuracy <- naive_bayes_confusion$overall['Accuracy']
+
+cat("K-NN Accuracy: ", knn_accuracy, "\n")
+cat("Naïve Bayes Accuracy: ", naive_bayes_accuracy, "\n")
+```
+ 
+#Executive Summary
+#The analysis of U.S. power generation data, focusing on sulfur content, ash content, and fuel cost per MMBtu, reveals distinct patterns in fuel characteristics through clustering, while classification methods provide insight into predicting fuel types based on these features. The clustering analysis highlights how different fuel types exhibit variations in sulfur and ash content, which in turn influences the fuel cost. The classification models, K-NN and Naïve Bayes, demonstrate reasonable predictive accuracy, with K-NN performing slightly better in classifying the fuel type based on these features. These insights suggest that sulfur and ash content play crucial roles in determining fuel costs, and understanding these relationships can help optimize fuel selection for power generation. Further recommendations include the need for monitoring outlier data points to refine predictions and clustering results.
+
+#Introduction
+#The dataset used for this analysis consists of key features such as sulfur content, ash content, and fuel cost per MMBtu, with the response variable being the fuel type used in U.S. power generation. Prior to analysis, data cleaning included handling any missing values (using na.omit) and ensuring that categorical variables were correctly converted to factors (e.g., fuel_type_code_pudl). We also performed scaling on numerical variables to standardize them before applying clustering and classification models. No significant outliers were removed in this case, but this could be revisited for further refinement.
+
+#Part A: Clustering
+#Analysis:
+#Clustering using K-means and DBSCAN revealed distinct groups within the data, helping to identify how various fuel types vary in terms of sulfur and ash content. K-means with 3 clusters and DBSCAN provided similar insights, grouping fuel types with similar characteristics together. These clusters highlighted that higher sulfur and ash content is often associated with certain fuel types, which directly impacts their cost. For instance, higher sulfur content tends to correlate with higher fuel costs due to additional processing requirements.
+
+#Discussion:
+#The clustering analysis was successful in grouping fuel types based on sulfur and ash content. However, it’s important to note that fuel cost per MMBtu can be influenced by multiple external factors, such as market conditions and regional differences, which are not captured by this clustering alone. Further refinement of the clusters could be done by incorporating more features, such as energy efficiency or carbon emissions.
+
+#Part B: Classification
+#Analysis:
+#In the classification task, both K-NN and Naïve Bayes models were applied to predict fuel type based on sulfur content, ash content, and fuel cost per MMBtu. The K-NN model outperformed Naïve Bayes slightly in terms of accuracy, though both models demonstrated reasonable predictive capabilities. The confusion matrices for both models showed that the majority of misclassifications occurred in distinguishing between certain fuel types with similar sulfur and ash content profiles. This suggests that while these features provide useful information, there may be other hidden factors affecting fuel type classification.
+
+#Discussion:
+#The classification results are promising, with K-NN being more accurate due to its ability to leverage local patterns in the data. However, the relatively high misclassification rate for certain fuel types highlights the need for further feature engineering. Including additional variables, such as fuel composition or environmental considerations, may improve classification accuracy. Additionally, further model tuning, including optimizing the number of neighbors in K-NN or applying smoothing techniques in Naïve Bayes, could enhance performance.
+
+#Conclusions
+#This project highlighted the importance of sulfur and ash content in understanding fuel costs in U.S. power generation. Clustering and classification analyses provided valuable insights into how these features relate to different fuel types. The primary assumption in this study was that sulfur and ash content are significant factors in determining fuel cost, and while the models performed reasonably well, incorporating additional features could enhance their predictive power. For power generation stakeholders, understanding these relationships could inform decisions around fuel selection and cost optimization, but more comprehensive data would be necessary for further refinement. Finally, ongoing monitoring of outliers and data irregularities is essential to maintaining the robustness of these models.
+
+

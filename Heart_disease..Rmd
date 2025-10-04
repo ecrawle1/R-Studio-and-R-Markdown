@@ -1,0 +1,130 @@
+---
+title: "Heart_Disease_PDF"
+author: "Elizabeth Crawley"
+date: "`r Sys.Date()`"
+output: pdf_document
+
+#Heart_disease.CSV dataset contains medical information used for predicting heart disease. It includes various attributes such as age, sex, chest pain type, blood pressure, cholesterol levels, fasting blood sugar, resting ECG results, MAX_HeartRate, and exercise. Our objective is to predict whether a person experiencing chest pain will develop heart disease or not. To achieve this, you will create a dummy variable called "Target" that will be "Yes" if the "MAX_HeartRate" exceeds 170 and "No" if it is 170 or below. Additionally, you will create another dummy variable named "BP_New," which will be "Yes" if the blood pressure is above 120 and "No" if it is 120 or below. Relevant libraries: caret, e1071, dplyr, tinytex.
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+# Load necessary libraries
+```{r}
+library(e1071)
+library(caret)
+library(dplyr)
+```
+# Read the heart disease dataset
+```{r}
+Heart_disease <- read.csv("C:/Users/ecrawle1/OneDrive - Kent State University/Desktop/Machine Learning/Heart_disease.csv")
+```
+#Create a dummy variable called "Target" that will be "Yes" if the "MAX_HeartRate" exceeds170 and "No" if it is 170 or below. Additionally, you will create another dummy variable named "BP_New," which will be "Yes" if the blood pressure is above 120 and "No" if it is 120 or below.
+```{r}
+Target <- Heart_disease %>%
+  mutate(Target = ifelse(MAX_HeartRate > 170, "Yes", "No"))
+BP_New <- Heart_disease %>%
+  mutate(BP_New = ifelse(Blood_Pressure > 120, "Yes", "No"))
+```
+#Q1) Prediction Based on Initial Information: [30 Points] If a person with chest pain presents without any further information, what prediction should we make regarding heart disease?
+
+# The prediction is "Yes", heart disease. If the only available information is the presence of chest pain, with no further details about the person’s heart rate, blood pressure, or other, we need to make a prediction about the likelihood of heart disease based solely on chest pain. Chest pain is often a significant indicator of potential heart issues. However, not all types of chest pain are associated with heart disease.
+```{r}
+Target_table <- table(Heart_disease$Target)
+
+
+print(Target_table)
+```
+# Q2) Analysis of the First 30 Records: [3*20=60 Points] Select the first 30 records in the dataset and focus on the "Target" response variable and the two predictors: blood pressure and chest pain type. Create a pivot table that examines heart disease as a function of these two predictors for these 30 records, incorporating all three variables as rows and columns.
+
+# Load necessary libraries
+```{r}
+library(e1071)
+library(caret)
+library(dplyr)
+```
+# Read the heart disease dataset
+```{r}
+Heart_disease <- read.csv("C:/Users/ecrawle1/OneDrive - Kent State University/Desktop/Machine Learning/Heart_disease.csv")
+```
+# Select the first 30 records and focus on the relevant variables
+```{r}
+Heart_disease30 <- Heart_disease [1:30, c("Target", "BP_New", "chest_pain_type")]
+
+Object1 <- ftable(Heart_disease30)
+
+# Compute marginal totals for each combination of BP_New and chest_pain_type
+# Here we can create a contingency table for the total counts of each condition
+Object2 <- ftable(Heart_disease30 [,-1])
+
+print(Object1)
+print(Object2)
+```
+# a. Compute Bayes Conditional Probabilities: Calculate the exact Bayes conditional probabilities of the "Target (Target=yes)" variable given the four possible combinations of the predictors.
+```{r}
+# Classify using probabilities
+# Set up a vector for probabilities
+Probability_Target <- rep(0, nrow(Heart_disease30))
+
+# Calculate probabilities based on the flat table for each record
+for (i in 1:nrow(Heart_disease30)) {
+  bp_status <- Heart_disease30$BP_New[i]
+  cp_type <- Heart_disease30$chest_pain_type[i]
+  
+  # Check the conditions and assign probabilities based on the flat table
+  if (bp_status == "No" && cp_type == 0) {
+    Probability_Target[i] <- Object1["Yes", "No", 0] / (Object2[1, "No"] + Object2[1, "Yes"])
+  } else if (bp_status == "No" && cp_type == 1) {
+    Probability_Target[i] <- Object1["Yes", "No", 1] / (Object2[1, "No"] + Object2[1, "Yes"])
+  } else if (bp_status == "Yes" && cp_type == 0) {
+    Probability_Target[i] <- Object1["Yes", "Yes", 0] / (Object2[1, "Yes"] + Object2[1, "No"])
+  } else if (bp_status == "Yes" && cp_type == 1) {
+    Probability_Target[i] <- Object1["Yes", "Yes", 1] / (Object2[1, "Yes"] + Object2[1, "No"])
+  }
+}
+
+# Add the probabilities to the dataset
+Heart_disease30$Probability_Target <- Probability_Target
+```
+# b. Classification of Accidents: Classify the 30 records using these probabilities with a cutoff of 0.5.
+```{r}
+# Classify based on the cutoff of 0.5
+Heart_disease30$Pred_Probability <- ifelse(Heart_disease30$Probability_Target > 0.5, "Yes", "No")
+
+# View the updated dataset with probabilities and predictions
+print(Heart_disease30)
+```
+#c. Manual Calculation of Naive Bayes Probability: Manually compute the naive Bayes conditional probability of an injury given that "BP_New" is "Yes" and "chest_pain_type" is 1.
+```{r}
+# Step 3: Manual Calculation of Naive Bayes Probability
+# Calculate P(Target = Yes | BP_New = Yes, chest_pain_type = 1)
+P_BPYes_CP1 <- sum(Heart_disease30$BP_New == "Yes" & Heart_disease30$chest_pain_type == 1 & Heart_disease30$Target == "Yes") / 
+                sum(Heart_disease30$BP_New == "Yes" & Heart_disease30$chest_pain_type == 1)
+
+# Print the calculated probability
+cat("P(Target = Yes | BP_New = Yes, chest_pain_type = 1):", P_BPYes_CP1, "\n")
+```
+# Q3) Full Dataset Analysis: [50 Points] Now, use the complete dataset. Partition the data into training (60%) and validation (40%) sets. Run the Naive Bayes classifier on the entire training set using the relevant predictors, with "Target" as the response variable. Note that all predictors are categorical. Present the confusion matrix
+```{r}
+# Set seed for reproducibility
+set.seed(1)
+
+# Partition the data into 60% training and 40% validation sets
+train.index <- sample(row.names(Heart_disease_data), 0.6 * nrow(Heart_disease_data))
+valid.index <- setdiff(row.names(Heart_disease_data), train.index)
+
+# Create training and validation dataframes
+train.df <- Heart_disease_data[train.index, ]
+valid.df <- Heart_disease_data[valid.index, ]
+
+# Train the Naive Bayes model using relevant predictors
+nb_model <- naiveBayes(Target ~ chest_pain_type + BP_New, data = train.df)
+
+# Predict on the validation set
+valid_pred <- predict(nb_model, newdata = valid.df)
+
+# Generate a confusion matrix
+conf_matrix <- confusionMatrix(valid_pred, valid.df$Target)
+
+# Print the confusion matrix
+print(conf_matrix)
+```
