@@ -1,0 +1,63 @@
+---
+title: "Assignment 1 - Setting Up R"
+author: "Elizabeth Crawley"
+date: "2025-05-31"
+output:
+  word_document: default
+  pdf_document: default
+---
+
+## 1. Install the ISLR library using the install.packages() command.
+## Call the library using the library(ISLR) command to ensure that the library is correctly installed 
+
+```{r}
+library(ISLR)
+```
+
+## 2. Create a new R-Notebook (.Rmd) file. 
+## In the first code chunk, call the ISLR library and then print the summary of the Carseats dataset. 
+## How many observations (rows) this dataset contains?
+## I used the summary() function to view the carseats dataset.
+```{r}
+summary(Carseats)
+```
+
+## I used rnow() function to view the number of rows.
+
+```{r}
+nrow(Carseats)
+```
+
+## 3. Using the summary statistics shown above, what is maximum value of the advertising attribute?
+## I used the summary() function to view the Advertising attribute of the CarSeats dataset.
+
+```{r}
+summary(Carseats$Advertising)
+```
+
+## 4. Calculate the IQR of the Price attribute
+## I did not know what IQR stood for, so I had to search online to learn I could use the IQR() function to view the "Interquartile Range" which is the difference between the 75th percentile and the 25th percentile, IQR = Q3-Q1. 
+
+```{r}
+IQR(Carseats$Price)
+```
+
+##5. Plot the Sales against Price. 
+## What do you see in there? Calculate the correlation of the two attributes. 
+## What does the sign of the correlation coefficient suggest?
+
+```{r}
+plot(Carseats$Price, Carseats$Sales)
+```
+
+## The plot could be cleaned up by adding a descriptive title to the x and y axis, choosing a different style of plot such as a box plot, or making the plot dots solid or blue, for example. 
+## Without adding these, it is difficult to determine the correlation coefficient. 
+## However, I found online that I could use the cor() function to find the correlation coeffient. 
+```{r}
+cor(Carseats$Price, Carseats$Sales)
+```
+
+## The correlation coefficient can be calculated using the cor() function in R. ## The correlation coefficient is approximately -0.44
+## The sign (-) of the correlation coefficient means that as the price increases, sales tend to decrease. 
+## Being unfamiliar with what a negative sign would indicate, I searched online and found the answers I provided above.
+
